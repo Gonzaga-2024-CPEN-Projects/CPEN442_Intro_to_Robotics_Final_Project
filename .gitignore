@@ -41,7 +41,6 @@
 # Generated output files
 /Listings/*
 /Objects/*
-*/RTE/*
 
 # Debugger files
 # define exception below if needed
