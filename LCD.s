@@ -22,58 +22,41 @@ GPIO_PORTE_DEN_R        EQU		0x4002451C
 	EXPORT GPIO_PORTA_DATA_R
 	
 	
-	EXPORT  Delay1ms
-	EXPORT	Delay10us
+	EXPORT  Delay1ms	
 	EXPORT	Set_Position
 	EXPORT	Display_Msg
 	EXPORT	Display_Char 
-	EXPORT	Init_Clock
+    EXPORT  Set_Blink_ON
+    EXPORT  Set_Blink_OFF
+;	EXPORT	Init_Clock
 	EXPORT	Init_LCD_Ports
 	EXPORT	Init_LCD
 
 		
 Init_LCD_Ports
-	; Initialize PORTs A, C and E. Note: this initialization uses a friendly code
+	; Initialize PORTs A, C and E. Note: this initialization uses an UNFRIENDLY code
 	PUSH	{LR, R2, R3}
+	MOV		R3, #0x15; Activating the clocks for the three ports.
 	LDR		R2,=SYSCTL_RCGCGPIO_R
-	LDR		R3, [R2]
-	ORR		R3, #0x15;
 	STR		R3, [R2]
 	NOP
 	NOP
-	; Pins PTA2-PTA5 are outputs
+	MOV		R3, #0x3C; Pins PTA2-PTA5 are outputs
 	LDR		R2, =GPIO_PORTA_DIR_R
-	LDR		R3, [R2]
-	ORR		R3, #0x3C
 	STR		R3, [R2]
-	; Pin PC6 is output
+	MOV		R3, #0x40; Pin PC6 is output
 	LDR		R2, =GPIO_PORTC_DIR_R
-	LDR		R3, [R2]
-	ORR		R3, #0x40;
 	STR		R3, [R2]
-	
-	; Pin PE0 is output
+	MOV		R3, #0x01; Pin PE0 is output
 	LDR		R2,	=GPIO_PORTE_DIR_R
-	LDR		R3, [R2]
-	ORR		R3, #0x01
 	STR		R3, [R2]
 	
-; PORTA's signals are digital
+	MOV		R3, #0xFF; PORTA's signals are digital
 	LDR		R2, =GPIO_PORTA_DEN_R
-	LDR		R3, [R2]
-	ORR		R3, #0x3C
 	STR		R3, [R2]
-	
-; PPC6's signals are digital	
-	LDR		R2, =GPIO_PORTC_DEN_R
-	LDR		R3, [R2]
-	ORR		R3, #0x40
+	LDR		R2, =GPIO_PORTC_DEN_R; PORTC's signals are digital
 	STR		R3, [R2]
-	
-; PE0 signals are digital	
-	LDR		R2, =GPIO_PORTE_DEN_R; 
-	LDR		R3, [R2]
-	ORR		R3, #0x01;
+	LDR		R2, =GPIO_PORTE_DEN_R; PORTC's signals are digital
 	STR		R3, [R2]
 	POP		{LR, R2, R3}
  	BX		LR	
@@ -101,8 +84,8 @@ Display_Char
 	BL		WriteData	; write upper 4 bits of ASCII byte
 	MOV		R0, R1
 	BL		WriteData	; write lower 4 bits of ASCII byte
-	MOV		R0, #50	
-	BL		Delay10us	; wait for 1ms
+	MOV		R0, #0x01	
+	BL		Delay1ms	; wait for 1ms
 	POP		{LR, R1, R0}
 	BX		LR
 
@@ -115,8 +98,8 @@ Set_Position
 	BL		WriteCMD	; write upper 4 bits of the command
 	MOV		R0,	R1
 	BL		WriteCMD	; write lower 4 bits of the command
-	MOV		R0, #50		
-	BL		Delay10us	; wait for 1ms
+	MOV		R0, #0x01		
+	BL		Delay1ms	; wait for 1ms
 	POP		{LR, R1, R0}
 	BX		LR
 
@@ -257,26 +240,37 @@ Init_LCD
 	POP		{LR, R1, R0}
 	BX		LR
 	
-Init_Clock
-	; Bypass the PLL to operate at main 16MHz Osc.
+; Subroutine Set_Blink_ON: sets the blink on at the character indicated by R0
+Set_Blink_ON
 	PUSH	{LR, R1, R0}
-	LDR		R0, =SYSCTL_RCC_R
-	LDR		R1, [R0]
-	BIC		R1, #0x00400000 ; Clearing bit 22 (USESYSDIV)
-	BIC		R1, #0x00000030	; Clearing bits 4 and 5 (OSCSRC) use main OSC
-	ORR		R1, #0x00000800 ; Bypassing PLL
-	
-	STR		R1, [R0]
+	MOV		R0, #0x0D
+	BL		SplitNum
+	BL		WriteCMD
+	MOV		R0, R1
+	BL		WriteCMD
+	MOV		R0, #0x01
+	BL		Delay1ms
 	POP		{LR, R1, R0}
 	BX		LR
-	
+
+; Subroutine Set_Blink_OFF: sets the blink off 
+Set_Blink_OFF
+	PUSH	{LR, R1, R0}
+	MOV		R0, #0x0C
+	BL		SplitNum
+	BL		WriteCMD
+	MOV		R0, R1
+	BL		WriteCMD
+	MOV		R0, #0x01
+	BL		Delay1ms
+	POP		{LR, R1, R0}
+	BX		LR
 
 ;Delay milliseconds
 Delay1ms
 	PUSH	{LR, R0, R3, R4}
 	MOVS	R3, R0
 	BNE		L1; if n=0, return
-	POP		{LR, R0, R3, R4}
 	BX		LR; return
 
 L1	LDR		R4, =5334
@@ -285,25 +279,6 @@ L2	SUBS	R4, R4,#1
 	BNE		L2
 	SUBS	R3, R3, #1
 	BNE		L1
-	POP		{LR, R0, R3, R4}
-	BX		LR
-	
-;Delay 10 microseconds
-Delay10us
-	PUSH	{LR, R0, R3, R4}
-	MOVS	R3, R0
-	BNE		Loop1; if n=0, return
-	POP		{LR, R0, R3, R4}
-	BX		LR; return
-
-Loop1
-	LDR		R4, =53
-			; do inner loop 5336 times (16 MHz CPU clock)
-Loop2
-	SUBS	R4, R4,#1
-	BNE		Loop2
-	SUBS	R3, R3, #1
-	BNE		Loop1
 	POP		{LR, R0, R3, R4}
 	BX		LR
 	

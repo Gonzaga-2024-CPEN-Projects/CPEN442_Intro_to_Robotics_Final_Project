@@ -399,11 +399,12 @@ WDT0_Handler\
                 B       .
                 ENDP
 
-TIMER0A_Handler\
+    IMPORT      TIMER0A_Handler
+;TIMER0A_Handler\
                 PROC
-                EXPORT  TIMER0A_Handler [WEAK]
-                B       .
-                ENDP
+;                EXPORT  TIMER0A_Handler [WEAK]
+;                B       .
+;                ENDP
 
 TIMER0B_Handler\
                 PROC
