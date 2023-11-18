@@ -39,8 +39,8 @@ void Init_Timer0A(uint32_t period_us)
 	NVIC_PRI4_R |= 0x40000000;	// set priority level 2
 	TIMER0->ICR = 0x01;					// clear the status bit
 	TIMER0->CTL |= 0x01;
-	__enable_irq();							// globally enable intrrupts
-		
+	// NOTE: here, right before this function returns, we would normally enable
+	// interrupts globally, but that is done in StartOS in osasm_V2.s (so we don't)
 }
 
 int timer_count = 0;
