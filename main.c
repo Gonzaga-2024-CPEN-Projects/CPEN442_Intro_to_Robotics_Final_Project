@@ -2,6 +2,9 @@
 #include "tm4c123gh6pm_def.h"
 #include <stdio.h>
 
+// define the number of ticks per thread time (2ms thread switching time)
+#define TIMESLICE 25000
+
 // LCD functs
 void Init_LCD_Ports(void);
 void Init_LCD(void);
@@ -26,34 +29,70 @@ void OS_Suspend(void);
 // ADC.
 void Init_Timer0A(uint32_t period_us)
 {
-    
+  SYSCTL->RCGCTIMER |= 0x01; 	// activate timer0
+	TIMER0->CTL &= ~0x01;				// disable timer during setup
+	TIMER0->CFG = 0x00000000;		// put timer in 16 bit mode
+	TIMER0->TAMR = 0x00000002;				// config timer for periodic mode
+	TIMER0->TAILR = 1599;				// set the count limit
+	TIMER0->IMR |= 0x01;				// timer interrupts on time-out event
+	NVIC_EN0_R |= 1 << 19;
+	NVIC_PRI4_R |= 0x40000000;	// set priority level 2
+	TIMER0->ICR = 0x01;					// clear the status bit
+	TIMER0->CTL |= 0x01;
+	__enable_irq();							// globally enable intrrupts
+		
+}
+
+int timer_count = 0;
+int t1 = 0;
+int t2 = 0;
+int t3 = 0;
+int t4 = 0;
+
+
+void TIMER0A_Handler(void)
+{
+	// NOTE: we should either make this interrupt the highest priority in the system,
+	//			 or disable all other interrupts while servicing it to prevent a critical code
+	// 			 section from being interrupted.
+	TIMER0->ICR = 0x01;		// ack the interrupt.
+	timer_count++;
 }
 
 void timer_thread(void)
 {
-    while (1) {};
+    while (1) {
+			t1++;
+		};
 }
 
 // LED thread responsible for dequeuing and outputting to led.
 void led_thread(void)
 {
-    while (1) {};
+    while (1) {
+			t2++;
+		};
 }
 
 // output to LCD thread
 void lcd_thread(void)
 {
-    while (1) {};
+    while (1) {
+			t3++;
+		};
 }
 
 // Read switches thread
 void sw_thread(void)
 {
-    while (1) {};
+    while (1) {
+			t4++;
+		};
 }
 int main(void)
 {
-    Init_LCD_Ports();
+    Init_Timer0A(1600);
+		Init_LCD_Ports();
     Init_LCD();
     OS_Init();                 // initialize, disable interrupts, 16 MHz
     SYSCTL_RCGCGPIO_R |= 0x28; // activate clock for Ports F and D
