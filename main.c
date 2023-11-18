@@ -33,7 +33,7 @@ void Init_Timer0A(uint32_t period_us)
 	TIMER0->CTL &= ~0x01;				// disable timer during setup
 	TIMER0->CFG = 0x00000000;		// put timer in 16 bit mode
 	TIMER0->TAMR = 0x00000002;				// config timer for periodic mode
-	TIMER0->TAILR = 1599;				// set the count limit
+	TIMER0->TAILR = period_us * 16;				// set the count limit
 	TIMER0->IMR |= 0x01;				// timer interrupts on time-out event
 	NVIC_EN0_R |= 1 << 19;
 	NVIC_PRI4_R |= 0x40000000;	// set priority level 2
@@ -91,7 +91,7 @@ void sw_thread(void)
 }
 int main(void)
 {
-    Init_Timer0A(1600);
+    Init_Timer0A(100); 	// initalize for 100us interrupts
 		Init_LCD_Ports();
     Init_LCD();
     OS_Init();                 // initialize, disable interrupts, 16 MHz
