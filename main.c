@@ -13,7 +13,7 @@ void Display_Msg(char *Str);
 
 // Operating System Functions
 void OS_Init(void);
-void OS_AddThreads(void f1(void), void f2(void), void f3(void), void f4(void));
+void OS_AddThreads(void f1(void), void f2(void));
 void OS_Launch(uint32_t);
 void OS_Wait(int32_t *S);
 void OS_Signal(int32_t *S);
@@ -46,9 +46,6 @@ void Init_Timer0A(uint32_t period_us)
 int timer_count = 0;
 int t1 = 0;
 int t2 = 0;
-int t3 = 0;
-int t4 = 0;
-
 
 void TIMER0A_Handler(void)
 {
@@ -59,7 +56,7 @@ void TIMER0A_Handler(void)
 	timer_count++;
 }
 
-void timer_thread(void)
+void thread1(void)
 {
     while (1) {
 			t1++;
@@ -67,28 +64,13 @@ void timer_thread(void)
 }
 
 // LED thread responsible for dequeuing and outputting to led.
-void led_thread(void)
+void thread2(void)
 {
     while (1) {
 			t2++;
 		};
 }
 
-// output to LCD thread
-void lcd_thread(void)
-{
-    while (1) {
-			t3++;
-		};
-}
-
-// Read switches thread
-void sw_thread(void)
-{
-    while (1) {
-			t4++;
-		};
-}
 int main(void)
 {
     Init_Timer0A(100); 	// initalize for 100us interrupts
@@ -104,7 +86,7 @@ int main(void)
     GPIO_PORTF_DIR_R |= 0x0E;  // make PF3-1 output
     GPIO_PORTF_DEN_R |= 0x0E;  // enable digital I/O on PF3-1
 
-    OS_AddThreads(&timer_thread, &led_thread, &lcd_thread, &sw_thread);
+    OS_AddThreads(&thread1, &thread2);
     OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
     return 0;             // this never executes
 }

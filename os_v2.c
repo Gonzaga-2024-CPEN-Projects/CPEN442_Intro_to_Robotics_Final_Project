@@ -233,10 +233,9 @@ void SetInitialStack(int i)
 // add three foregound threads to the scheduler
 // Inputs: three pointers to a void/void foreground tasks
 // Outputs: 1 if successful, 0 if this thread can not be added
-int OS_AddThreads(void (*task0)(void),
-				  void (*task1)(void)) /*,
-					void(*task2)(void),
-									void (*task3) (void) )*/
+int OS_AddThreads(
+	void (*task0)(void),
+	void (*task1)(void)) 
 {
 	int32_t status;
 	status = StartCritical();
@@ -246,12 +245,13 @@ int OS_AddThreads(void (*task0)(void),
 							 //	tcbs[3].next = &tcbs[0]; // 3 points to 0
 	SetInitialStack(0);
 	Stacks[0][STACKSIZE - 2] = (int32_t)(task0); // PC
+
 	SetInitialStack(1);
 	Stacks[1][STACKSIZE - 2] = (int32_t)(task1); // PC
-												 //  SetInitialStack(2); Stacks[2][STACKSIZE-2] = (int32_t)(task2); // PC
-												 //	SetInitialStack(3); Stacks[3][STACKSIZE-2] = (int32_t)(task3); // PC
+
 	RunPt = &tcbs[0];							 // thread 0 will run first
 	EndCritical(status);
+
 	return 1; // successful
 }
 
