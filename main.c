@@ -1,9 +1,13 @@
+// main program for a PID DC motor controller implementation on 
+// the tm4c123gh6m eval board.
+
 #include "TM4C123GH6PM.h"
 #include "tm4c123gh6pm_def.h"
 #include <stdio.h>
 
+
 // define the number of ticks per thread time (2ms thread switching time)
-#define TIMESLICE 25000
+#define TIMESLICE 32000
 
 // LCD functs
 void Init_LCD_Ports(void);
@@ -14,11 +18,13 @@ void Display_Msg(char *Str);
 // Operating System Functions
 void OS_Init(void);
 void OS_AddThreads(void f1(void), void f2(void));
+
 void OS_Launch(uint32_t);
 void OS_Wait(int32_t *S);
 void OS_Signal(int32_t *S);
 void OS_Sleep(uint32_t);
 void OS_Suspend(void);
+
 
 /*
     Application specific functions
@@ -69,6 +75,7 @@ void thread2(void)
     while (1) {
 			t2++;
 		};
+
 }
 
 int main(void)
@@ -76,6 +83,7 @@ int main(void)
     Init_Timer0A(100); 	// initalize for 100us interrupts
 		Init_LCD_Ports();
     Init_LCD();
+
     OS_Init();                 // initialize, disable interrupts, 16 MHz
     SYSCTL_RCGCGPIO_R |= 0x28; // activate clock for Ports F and D
     while ((SYSCTL_RCGCGPIO_R & 0x28) == 0)
@@ -87,6 +95,7 @@ int main(void)
     GPIO_PORTF_DEN_R |= 0x0E;  // enable digital I/O on PF3-1
 
     OS_AddThreads(&thread1, &thread2);
+
     OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
     return 0;             // this never executes
 }

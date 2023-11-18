@@ -253,6 +253,7 @@ int OS_AddThreads(
 	EndCritical(status);
 
 	return 1; // successful
+
 }
 
 ///******** OS_Launch ***************
