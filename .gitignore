@@ -1,1 +1,13 @@
+# Ignore all files
+*
 
+# Except .c and .s files
+!*.c
+!*.s
+!*.h
+!*.pdf
+!*.ini
+!*.txt
+
+# Ignore all directories
+*/
