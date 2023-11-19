@@ -25,10 +25,56 @@ void OS_Signal(int32_t *S);
 void OS_Sleep(uint32_t);
 void OS_Suspend(void);
 
+void delayMs(int n)
+{
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < 6265; j++) {
+			// do nothing for 1 ms
+		}
+	}
+}
 
 /*
     Application specific functions
 */
+
+// configure PWM module 1 to generate a PWM signal on
+// PF2. PB2-3 control motor direction.
+void Init_M1PWM6(int period_ms, int duty_cycle)
+{
+	// given a wave period in ms, compute the load value
+	int load_val = (250000 / period_ms) - 1;
+	
+	SYSCTL->RCGCPWM |= 0x02; // enable clock to PWM1
+	SYSCTL->RCGCGPIO |= 0x20; // enable clock to GPIOF
+	SYSCTL->RCGCGPIO |= 0x02; // enable clock to GPIOB
+	delayMs(1); // PWM1 seems to take a while to start
+	SYSCTL->RCC |= 0x001E0000; // use divider 64
+	PWM1->_3_CTL = 0; // disable PWM1_3 during configuration
+	PWM1->_3_GENA = 0x00000C08; // low on load, high on CPMA down
+	PWM1->_3_LOAD = load_val; 
+	PWM1->_3_CMPB = duty_cycle;
+	PWM1->_3_CTL = 1; // enable PWM1_3
+	PWM1->ENABLE |= 0x40; // enable PWM1
+	GPIOF->DIR |= 0x04; // set PF3 pins as output (LED) pin
+	GPIOF->DEN |= 0x04; // set PF3 pins as digital pins
+	GPIOF->AFSEL |= 0x04; // enable alternate function
+	GPIOF->PCTL &= ~0x00000F00; // clear PF2 alternate function
+	GPIOF->PCTL |= 0x00000500; // set PF2 alternate function to PWM
+	GPIOB->DEN |= 0x03; // PB0-1 as digital pins
+	GPIOB->DIR |= 0x03; // set PB0-1 as output
+}
+
+void MOT34_Dir_Set(void)
+{
+	GPIOB->DATA &= ~0x01;
+	GPIOB->DATA |= 0x02;
+}
+
+void MOT34_Speed_Set(uint16_t duty)
+{
+	PWM1->_3_CMPB = duty - 1;
+}
 
 // Init Timer0A to generate interrupts every 100 us. 
 // The handler will sample the voltage output by the
@@ -78,9 +124,18 @@ void thread2(void)
 
 }
 
+void motor_init()
+{
+	Init_M1PWM6(100, 0);	 	// init the motor speed to zero.
+	MOT34_Dir_Set();				// set the direction using PB0-1
+	MOT34_Speed_Set(2500 / 2); 	// set the motor speed to 50%
+}
+
 int main(void)
 {
-    Init_Timer0A(100); 	// initalize for 100us interrupts
+    Init_Timer0A(100); 			// initalize for 100us interrupts
+		motor_init();
+		
 		Init_LCD_Ports();
     Init_LCD();
 
