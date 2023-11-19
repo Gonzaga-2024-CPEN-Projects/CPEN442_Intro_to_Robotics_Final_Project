@@ -24,6 +24,8 @@ void OS_Wait(int32_t *S);
 void OS_Signal(int32_t *S);
 void OS_Sleep(uint32_t);
 void OS_Suspend(void);
+void OS_Signal(int32_t *s);
+void OS_Wait(int32_t *s);
 
 
 extern void Init_LCD_Ports(void);
@@ -48,6 +50,25 @@ void delayMs(int n)
 /*
     Application specific functions
 */
+
+void init_adc_pins(void)
+{
+	// the ADC uses ports A,B,C,E
+	SYSCTL->RCGCGPIO |= 0x17;
+	while ((SYSCTL->PRGPIO & 0x17) == 0) {};
+	GPIOC->DIR |= 0x80; 	// set PC7 for output
+	GPIOC->DEN |= 0x80;
+	
+	GPIOE->DIR |= 0x02;		// set PE1 to be output
+	GPIOE->DIR &= ~0x0C;	// set PE2-3 to be input
+	GPIOE->DEN |= 0x0E;		// DEN PE1-3
+
+	GPIOB->DIR &= ~0x3C;	// PB2-5 as input
+	GPIOB->DEN |= 0x3C;
+	
+	GPIOA->DIR &= ~0xC0;
+	GPIOA->DEN |= 0xC0;		// PA6-7 as input
+}
 
 // configure PWM module 1 to generate a PWM signal on
 // PF2. PB2-3 control motor direction.
@@ -110,6 +131,10 @@ int timer_count = 0;
 int t1 = 0;
 int t2 = 0;
 
+// init to unlikely val
+uint8_t ADC_OUTPUT = 0xFF;
+uint32_t ADC_DATA_sem = 1;
+// Read the value output by the ADC
 void TIMER0A_Handler(void)
 {
 	// NOTE: we should either make this interrupt the highest priority in the system,
@@ -117,6 +142,7 @@ void TIMER0A_Handler(void)
 	// 			 section from being interrupted.
 	TIMER0->ICR = 0x01;		// ack the interrupt.
 	timer_count++;
+	ADC_OUTPUT = (GPIOA->DATA & 0xC0) || (GPIOB->DATA & 0x3C) || ((GPIOE->DATA & 0x0C) >> 2);
 }
 
 void lcd_thread(void)
@@ -171,7 +197,8 @@ void motor_init()
 
 int main(void)
 {
-    Init_Timer0A(100); 			// initalize for 100us interrupts
+		init_adc_pins();
+		Init_Timer0A(100); 			// initalize for 100us interrupts
 		motor_init();
 		
 		Init_LCD_Ports();
