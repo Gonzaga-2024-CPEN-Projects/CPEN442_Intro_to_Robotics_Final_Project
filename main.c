@@ -58,14 +58,14 @@ void Init_M1PWM6(int period, int duty)
 	GPIOF->AFSEL |= 0x04; // enable alternate function
 	GPIOF->PCTL &= ~0x00000F00; // clear PF2 alternate function
 	GPIOF->PCTL |= 0x00000500; // set PF2 alternate function to PWM
-	GPIOB->DEN |= 0x03; // PB2-3 as digital pins
-	GPIOB->DIR |= 0x03; // set PB2-3 as output
+	GPIOB->DEN |= 0x03; // PB0-1 as digital pins
+	GPIOB->DIR |= 0x03; // set PB0-1 as output
 }
 
 void MOT34_Dir_Set(void)
 {
-	GPIOB->DATA &= ~0x04;
-	GPIOB->DATA |= 0x08;
+	GPIOB->DATA &= ~0x01;
+	GPIOB->DATA |= 0x02;
 }
 
 void MOT34_Speed_Set(uint16_t duty)
@@ -124,8 +124,9 @@ void thread2(void)
 int main(void)
 {
     Init_Timer0A(100); 	// initalize for 100us interrupts
-		Init_M1PWM6(4000, 2000);
-			
+		Init_M1PWM6(4000, 3500);
+		MOT34_Dir_Set();
+		MOT34_Speed_Set(3500);
 		Init_LCD_Ports();
     Init_LCD();
 
