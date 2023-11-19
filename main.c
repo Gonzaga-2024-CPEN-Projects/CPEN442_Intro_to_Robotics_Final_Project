@@ -119,11 +119,38 @@ void TIMER0A_Handler(void)
 	timer_count++;
 }
 
-void thread1(void)
+void lcd_thread(void)
 {
-    while (1) {
-			t1++;
-		};
+  while (1) {
+		/*Routine to print all necessary values to LCD*/
+		Set_Position(0x00);
+		Display_Msg("Input RPM:");
+
+		int input_RPM =0x0A; //replace this value with average speed
+		char RPM_str[4];
+		char* RPM_ptr = RPM_str;
+		Hex2ASCII(RPM_ptr, input_RPM);
+		Display_Msg(RPM_ptr);
+
+
+		Set_Position(0x40);
+		Display_Msg("T:");
+
+		int average_speed =0x270F; //replace this value with average speed
+		char avg_str[4];
+		char* avg_ptr = avg_str;
+		Hex2ASCII(avg_ptr, average_speed);
+		Display_Msg(avg_ptr);
+
+		Set_Position(0x48);
+		Display_Msg("C:");
+
+		int current_speed =0x0A0A; //replace this value with current speed
+		char cur_str[4];
+		char* cur_ptr = cur_str;
+		Hex2ASCII(cur_ptr, current_speed);
+		Display_Msg(cur_ptr);
+	};
 }
 
 // LED thread responsible for dequeuing and outputting to led.
@@ -151,58 +178,8 @@ int main(void)
     Init_LCD();
 
     OS_Init();                 // initialize, disable interrupts, 16 MHz
-    SYSCTL_RCGCGPIO_R |= 0x28; // activate clock for Ports F and D
-    while ((SYSCTL_RCGCGPIO_R & 0x28) == 0)
-    {
-    }                          // allow time for clock to stabilize
-    GPIO_PORTD_DIR_R &= ~0x0F; // make PD3-0 input
-    GPIO_PORTD_DEN_R |= 0x0F;  // enable digital I/O on PD3-0
-    GPIO_PORTF_DIR_R |= 0x0E;  // make PF3-1 output
-    GPIO_PORTF_DEN_R |= 0x0E;  // enable digital I/O on PF3-1
-	
-    Init_LCD_Ports(); //init LCD	
-	  Init_LCD();
-	
-	  Init_Keypad();
-	
-	//uint8_t key = Read_Key();
-	
-	
-	
-	/*Routine to print all necessary values to LCD*/
-	  Set_Position(0x00);
-	  Display_Msg("Input RPM:");
-	
-	  int input_RPM =0x0A; //replace this value with average speed
-	  char RPM_str[4];
-	  char* RPM_ptr = RPM_str;
-	  Hex2ASCII(RPM_ptr, input_RPM);
-	  Display_Msg(RPM_ptr);
-	
-	
-	  Set_Position(0x40);
-	  Display_Msg("T:");
-	
-	  int average_speed =0x270F; //replace this value with average speed
-	  char avg_str[4];
-	  char* avg_ptr = avg_str;
-	  Hex2ASCII(avg_ptr, average_speed);
-	  Display_Msg(avg_ptr);
-	
-	  Set_Position(0x48);
-	  Display_Msg("C:");
-	
-	  int current_speed =0x0A0A; //replace this value with current speed
-	  char cur_str[4];
-	  char* cur_ptr = cur_str;
-	  Hex2ASCII(cur_ptr, current_speed);
-	  Display_Msg(cur_ptr);
-	
 
-
-
-
-    OS_AddThreads(&thread1, &thread2);
+    OS_AddThreads(&lcd_thread, &thread2);
 
     OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
     return 0;             // this never executes
