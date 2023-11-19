@@ -59,8 +59,7 @@ void init_adc_pins(void)
 	GPIOC->DIR |= 0x80; 	// set PC7 for output
 	GPIOC->DEN |= 0x80;
 	
-	GPIOE->DIR |= 0x02;		// set PE1 to be output
-	GPIOE->DIR &= ~0x0C;	// set PE2-3 to be input
+	GPIOE->DIR &= 0x0E;	// set PE1-3 to be input
 	GPIOE->DEN |= 0x0E;		// DEN PE1-3
 
 	GPIOB->DIR &= ~0x3C;	// PB2-5 as input
@@ -133,7 +132,7 @@ int t2 = 0;
 
 // init to unlikely val
 uint8_t ADC_OUTPUT = 0xFF;
-uint32_t ADC_DATA_sem = 1;
+
 // Read the value output by the ADC
 void TIMER0A_Handler(void)
 {
@@ -141,7 +140,6 @@ void TIMER0A_Handler(void)
 	//			 or disable all other interrupts while servicing it to prevent a critical code
 	// 			 section from being interrupted.
 	TIMER0->ICR = 0x01;		// ack the interrupt.
-	timer_count++;
 	ADC_OUTPUT = (GPIOA->DATA & 0xC0) || (GPIOB->DATA & 0x3C) || ((GPIOE->DATA & 0x0C) >> 2);
 }
 
