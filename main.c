@@ -25,6 +25,17 @@ void OS_Signal(int32_t *S);
 void OS_Sleep(uint32_t);
 void OS_Suspend(void);
 
+
+extern void Init_LCD_Ports(void);
+extern void Display_Msg(char* Str);
+extern void Set_Position(uint32_t POS);
+extern void Init_LCD(void);
+extern void Init_Keypad();
+
+extern void Hex2ASCII(char* output, int hex);
+extern uint8_t Read_Key();
+uint8_t Key_ASCII;
+
 void delayMs(int n)
 {
 	for (int i = 0; i < n; i++) {
@@ -44,7 +55,7 @@ void Init_M1PWM6(int period_ms, int duty_cycle)
 {
 	// given a wave period in ms, compute the load value
 	int load_val = (250000 / period_ms) - 1;
-	
+  
 	SYSCTL->RCGCPWM |= 0x02; // enable clock to PWM1
 	SYSCTL->RCGCGPIO |= 0x20; // enable clock to GPIOF
 	SYSCTL->RCGCGPIO |= 0x02; // enable clock to GPIOB
@@ -148,6 +159,48 @@ int main(void)
     GPIO_PORTD_DEN_R |= 0x0F;  // enable digital I/O on PD3-0
     GPIO_PORTF_DIR_R |= 0x0E;  // make PF3-1 output
     GPIO_PORTF_DEN_R |= 0x0E;  // enable digital I/O on PF3-1
+	
+    Init_LCD_Ports(); //init LCD	
+	  Init_LCD();
+	
+	  Init_Keypad();
+	
+	//uint8_t key = Read_Key();
+	
+	
+	
+	/*Routine to print all necessary values to LCD*/
+	  Set_Position(0x00);
+	  Display_Msg("Input RPM:");
+	
+	  int input_RPM =0x0A; //replace this value with average speed
+	  char RPM_str[4];
+	  char* RPM_ptr = RPM_str;
+	  Hex2ASCII(RPM_ptr, input_RPM);
+	  Display_Msg(RPM_ptr);
+	
+	
+	  Set_Position(0x40);
+	  Display_Msg("T:");
+	
+	  int average_speed =0x270F; //replace this value with average speed
+	  char avg_str[4];
+	  char* avg_ptr = avg_str;
+	  Hex2ASCII(avg_ptr, average_speed);
+	  Display_Msg(avg_ptr);
+	
+	  Set_Position(0x48);
+	  Display_Msg("C:");
+	
+	  int current_speed =0x0A0A; //replace this value with current speed
+	  char cur_str[4];
+	  char* cur_ptr = cur_str;
+	  Hex2ASCII(cur_ptr, current_speed);
+	  Display_Msg(cur_ptr);
+	
+
+
+
 
     OS_AddThreads(&thread1, &thread2);
 
