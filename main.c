@@ -160,9 +160,6 @@ void TIMER0A_Handler(void)
 	GPIOC->DATA &= ~0x80;
 	GPIOC->DATA |= 0x80;
 
-	while ((GPIOE->DATA & 0x02) == 0)
-	{
-	}
 
 	ADC_OUTPUT = (GPIOA->DATA & 0xC0) | (GPIOB->DATA & 0x3C) | ((GPIOE->DATA & 0x0C) >> 2);
 	ADC_sum += ADC_OUTPUT;
@@ -307,18 +304,19 @@ void motor_init()
 int main(void)
 {
 
-    Init_Timer0A(100); 			// initalize for 100us interrupts
-	motor_init();
+    
+
 		
 	Init_LCD_Ports();
     Init_LCD();
 	Init_Keypad();
 
-
+	motor_init();
+	
 	OS_Init(); // initialize, disable interrupts, 16 MHz
+	Init_Timer0A(100); 			// initalize for 100us interrupts
 
-
-  OS_AddThreads(&lcd_thread, &thread2, &keypad_thread);
+	OS_AddThreads(&lcd_thread, &thread2, &keypad_thread);
 
 
 	OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
