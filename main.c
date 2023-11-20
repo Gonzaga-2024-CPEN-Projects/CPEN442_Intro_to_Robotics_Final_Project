@@ -34,13 +34,14 @@ extern void Init_Keypad(void);
 extern void Scan_Keypad(void);
 
 extern void Hex2ASCII(char* output, int hex);
-extern int ASCII2Hex(uint32_t* input);
+extern int ASCII2Hex(uint8_t* input);
 extern uint8_t Read_Key(void);
 uint8_t Key_ASCII;
-uint32_t keypadASCII_buf;
+uint32_t keypadASCII_buf[8];
 int keypad_idx = 0;
 
-int input_RPM; //input speed from keypad
+uint32_t input_RPM; //input speed from keypad when entered
+uint32_t display_input_RPM; //updated as user is pressing keys
 
 void delayMs(int n)
 {
@@ -131,33 +132,35 @@ void lcd_thread(void)
   while (1) {
 	  
 	  
-	  
 		/*Routine to print all necessary values to LCD*/
 		Set_Position(0x00);
 		Display_Msg("Input RPM:");
 
 		
-		char RPM_str[4];
+		char RPM_str[10];
 		char* RPM_ptr = RPM_str;
-		Hex2ASCII(RPM_ptr, input_RPM);
+		//RPM_str[4] = '\0';
+		Hex2ASCII(RPM_ptr, display_input_RPM);
 		Display_Msg(RPM_ptr);
 
 
 		Set_Position(0x40);
 		Display_Msg("T:");
 
-		int average_speed =0x270F; //replace this value with average speed
-		char avg_str[4];
-		char* avg_ptr = avg_str;
-		Hex2ASCII(avg_ptr, average_speed);
-		Display_Msg(avg_ptr);
+		//int target_speed =input_RPM; //replace this value with average speed
+		char tgt_str[10];
+		char* tgt_ptr = tgt_str;
+		//tgt_str[4] = '\0'; //to fix overflow error
+		Hex2ASCII(tgt_ptr, input_RPM);
+		Display_Msg(tgt_ptr);
 
 		Set_Position(0x48);
 		Display_Msg("C:");
 
 		int current_speed =0x0A0A; //replace this value with current speed
-		char cur_str[4];
+		char cur_str[5];
 		char* cur_ptr = cur_str;
+		cur_str[4] = '\0';
 		Hex2ASCII(cur_ptr, current_speed);
 		Display_Msg(cur_ptr);
 	};
@@ -177,34 +180,62 @@ void thread2(void)
 // Keypad thread responsible for reading and storing keypad input.
 void keypad_thread(void)
 {
+	int save = 0; //flag to update target speed
     while (1) {
 		//TODO: take care of case where enter is pressed 
 			t3++;
 			Scan_Keypad();
-//			if ((Key_ASCII == '#') || (keypad_idx >= 3)) {
-//				//enter has been pressed or buf is full with 4 chars
-//				keypad_idx = 0;
-//			}
-
-
-			keypadASCII_buf = keypadASCII_buf >> 8;
-			keypadASCII_buf |= (Key_ASCII & 0x0FF) << 24;
-			keypad_idx++;
+			
+			if (Key_ASCII == '#') {
+				save = 1;
+			}
+			else{
+				if (keypad_idx >= 3){
+					save = 1;
+				}
+				keypadASCII_buf[keypad_idx] = Key_ASCII;
+				keypad_idx++;
+			
+					
+			}
+			
 		
+		//fill byte buffer
+		uint8_t key_buf[] = {keypadASCII_buf[0], keypadASCII_buf[1], keypadASCII_buf[2], keypadASCII_buf[3]};
+		
+		//take care of 4th input separately since broken in code
 		if (keypad_idx >= 4){
-			//buf full
-			keypad_idx = 0;
-			input_RPM = ASCII2Hex(&keypadASCII_buf);
-			keypadASCII_buf = 0x00;
+			display_input_RPM = display_input_RPM * 10 + (Key_ASCII)-48;
+			
 		}
+		else{
+			display_input_RPM = ASCII2Hex(key_buf);
+		}
+		
+		
+				
+		if (save == 1){
+			
+			input_RPM = display_input_RPM;
+			
+			if(input_RPM >2400){
+				input_RPM = 2400;
+			}
+			else if ((input_RPM < 400) && (input_RPM > 0)){
+				input_RPM = 400;
+			}
+			keypad_idx = 0;
+			save = 0;
+			keypadASCII_buf[0] = 0;
+			keypadASCII_buf[1] = 0;
+			keypadASCII_buf[2] = 0;
+			keypadASCII_buf[3] = 0;
+		}
+		
 		OS_Sleep(50);//delay to act as debouncer Might change later for better implementation
 			
-		
-			
-			
-			
-			
-		};
+	
+		}
 
 }
 
