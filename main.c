@@ -16,7 +16,7 @@ void Display_Msg(char *Str);
 
 // Operating System Functions
 void OS_Init(void);
-void OS_AddThreads(void f1(void), void f2(void));
+void OS_AddThreads(void f1(void), void f2(void), void f3(void));
 
 void OS_Launch(uint32_t);
 void OS_Wait(int32_t *S);
@@ -30,11 +30,20 @@ extern void Init_LCD_Ports(void);
 extern void Display_Msg(char *Str);
 extern void Set_Position(uint32_t POS);
 extern void Init_LCD(void);
-extern void Init_Keypad();
+extern void Init_Keypad(void);
+extern void Scan_Keypad(void);
 
-extern void Hex2ASCII(char *output, int hex);
-extern uint8_t Read_Key();
+
+extern void Hex2ASCII(char* output, int hex);
+extern int ASCII2Hex(uint8_t* input);
+extern uint8_t Read_Key(void);
+
 uint8_t Key_ASCII;
+uint32_t keypadASCII_buf[8];
+int keypad_idx = 0;
+
+uint32_t input_RPM; //input speed from keypad when entered
+uint32_t display_input_RPM; //updated as user is pressing keys
 
 int32_t Current_speed(int32_t Avg_volt);
 
@@ -133,6 +142,7 @@ void Init_Timer0A(uint32_t period_us)
 
 int timer_count = 0;
 int t2 = 0;
+int t3 = 0;
 
 // init to unlikely val
 int8_t ADC_OUTPUT = 0xFF;
@@ -170,32 +180,44 @@ void TIMER0A_Handler(void)
 
 void lcd_thread(void)
 {
-	while (1)
-	{
+
+  while (1) {
+	  
+	  
 		/*Routine to print all necessary values to LCD*/
 		Set_Position(0x00);
 		Display_Msg("Input RPM:");
 
-		int input_RPM = 0x0A; // replace this value with average speed
-		char RPM_str[4];
-		char *RPM_ptr = RPM_str;
-		Hex2ASCII(RPM_ptr, input_RPM);
+
+		
+		char RPM_str[10];
+		char* RPM_ptr = RPM_str;
+		//RPM_str[4] = '\0';
+		Hex2ASCII(RPM_ptr, display_input_RPM);
+
 		Display_Msg(RPM_ptr);
 
 		Set_Position(0x40);
 		Display_Msg("T:");
 
-		int average_speed = 0x270F; // replace this value with average speed
-		char avg_str[4];
-		char *avg_ptr = avg_str;
-		Hex2ASCII(avg_ptr, average_speed);
-		Display_Msg(avg_ptr);
+
+		//int target_speed =input_RPM; //replace this value with average speed
+		char tgt_str[10];
+		char* tgt_ptr = tgt_str;
+		//tgt_str[4] = '\0'; //to fix overflow error
+		Hex2ASCII(tgt_ptr, input_RPM);
+		Display_Msg(tgt_ptr);
+
 
 		Set_Position(0x48);
 		Display_Msg("C:");
 
-		char cur_str[4];
-		char *cur_ptr = cur_str;
+
+		int current_speed =0x0A0A; //replace this value with current speed
+		char cur_str[5];
+		char* cur_ptr = cur_str;
+		cur_str[4] = '\0';
+
 		Hex2ASCII(cur_ptr, current_speed);
 		Display_Msg(cur_ptr);
 	};
@@ -204,11 +226,76 @@ void lcd_thread(void)
 // LED thread responsible for dequeuing and outputting to led.
 void thread2(void)
 {
-	while (1)
-	{
+
+    while (1) {
 		t2++;
-	};
+		
+			
+		};
 }
+
+// Keypad thread responsible for reading and storing keypad input.
+void keypad_thread(void)
+{
+	int save = 0; //flag to update target speed
+    while (1) {
+		//TODO: take care of case where enter is pressed 
+			t3++;
+			Scan_Keypad();
+			
+			if (Key_ASCII == '#') {
+				save = 1;
+			}
+			else{
+				if (keypad_idx >= 3){
+					save = 1;
+				}
+				keypadASCII_buf[keypad_idx] = Key_ASCII;
+				keypad_idx++;
+			
+					
+			}
+			
+		
+		//fill byte buffer
+		uint8_t key_buf[] = {keypadASCII_buf[0], keypadASCII_buf[1], keypadASCII_buf[2], keypadASCII_buf[3]};
+		
+		//take care of 4th input separately since broken in code
+		if (keypad_idx >= 4){
+			display_input_RPM = display_input_RPM * 10 + (Key_ASCII)-48;
+			
+		}
+		else{
+			display_input_RPM = ASCII2Hex(key_buf);
+		}
+		
+		
+				
+		if (save == 1){
+			
+			input_RPM = display_input_RPM;
+			
+			if(input_RPM >2400){
+				input_RPM = 2400;
+			}
+			else if ((input_RPM < 400) && (input_RPM > 0)){
+				input_RPM = 400;
+			}
+			keypad_idx = 0;
+			save = 0;
+			keypadASCII_buf[0] = 0;
+			keypadASCII_buf[1] = 0;
+			keypadASCII_buf[2] = 0;
+			keypadASCII_buf[3] = 0;
+		}
+		
+		OS_Sleep(50);//delay to act as debouncer Might change later for better implementation
+			
+	
+		}
+
+}
+
 
 void motor_init()
 {
@@ -219,16 +306,20 @@ void motor_init()
 
 int main(void)
 {
-	init_adc_pins();
-	Init_Timer0A(100); // initalize for 100us interrupts
-	motor_init();
 
+    Init_Timer0A(100); 			// initalize for 100us interrupts
+	motor_init();
+		
 	Init_LCD_Ports();
-	Init_LCD();
+    Init_LCD();
+	Init_Keypad();
+
 
 	OS_Init(); // initialize, disable interrupts, 16 MHz
 
-	OS_AddThreads(&lcd_thread, &thread2);
+
+  OS_AddThreads(&lcd_thread, &thread2, &keypad_thread);
+
 
 	OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
 	return 0;			  // this never executes
