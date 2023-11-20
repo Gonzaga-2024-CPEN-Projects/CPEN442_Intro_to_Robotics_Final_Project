@@ -84,11 +84,6 @@ Scan_Keypad_Again
 	LDR		R1, [R0]
 	CMP		R1, #0x00
 	BNE		End_Scan_Keypad	;
-	BL		Scan_Col_3	; PA5 = 1, scan the rows
-	LDR		R0, =RFlag		; check the flag
-	LDR		R1, [R0]
-	CMP		R1, #0x00
-	BNE		End_Scan_Keypad	;
 	B		Scan_Keypad_Again;
 End_Scan_Keypad
 	POP		{LR, R1, R0}
