@@ -132,6 +132,7 @@ void Init_Timer0A(uint32_t period_us)
 }
 
 int timer_count = 0;
+int t2 = 0;
 
 // init to unlikely val
 int8_t ADC_OUTPUT = 0xFF;
@@ -162,6 +163,7 @@ void TIMER0A_Handler(void)
 		int ADC_avg = ADC_sum / timer_count;
 		int v_avg = ADC_avg * 10000 / 128;
 		current_speed = Current_speed(v_avg);
+		ADC_sum = 0;
 		timer_count = 1;
 	}
 }
