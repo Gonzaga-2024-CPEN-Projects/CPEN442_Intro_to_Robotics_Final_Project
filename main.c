@@ -137,10 +137,12 @@ void lcd_thread(void)
 		Display_Msg("Input RPM:");
 
 		
-		char RPM_str[10];
+		char RPM_str[6];
 		char* RPM_ptr = RPM_str;
-		//RPM_str[4] = '\0';
+		
 		Hex2ASCII(RPM_ptr, display_input_RPM);
+		RPM_str[4] = ' ';
+		RPM_str[5] = ' ';
 		Display_Msg(RPM_ptr);
 
 
@@ -148,21 +150,26 @@ void lcd_thread(void)
 		Display_Msg("T:");
 
 		//int target_speed =input_RPM; //replace this value with average speed
-		char tgt_str[10];
+		char tgt_str[6];
 		char* tgt_ptr = tgt_str;
-		//tgt_str[4] = '\0'; //to fix overflow error
 		Hex2ASCII(tgt_ptr, input_RPM);
+		tgt_str[4] = ' '; //to fix overflow error
+		tgt_str[5] = ' '; //to fix overflow error
 		Display_Msg(tgt_ptr);
 
 		Set_Position(0x48);
 		Display_Msg("C:");
 
 		int current_speed =0x0A0A; //replace this value with current speed
-		char cur_str[5];
+		char cur_str[20];
 		char* cur_ptr = cur_str;
-		cur_str[4] = '\0';
+		cur_str[4] = ' ';
+		cur_str[5] = ' ';
 		Hex2ASCII(cur_ptr, current_speed);
 		Display_Msg(cur_ptr);
+		
+		
+		//clear white
 	};
 }
 
