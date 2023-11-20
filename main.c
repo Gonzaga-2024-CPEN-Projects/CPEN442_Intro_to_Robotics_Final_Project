@@ -38,6 +38,9 @@ extern void Hex2ASCII(char* output, int hex);
 extern uint8_t Read_Key();
 uint8_t Key_ASCII;
 
+int32_t Current_speed(int32_t Avg_volt);
+
+
 void delayMs(int n)
 {
 	for (int i = 0; i < n; i++) {
@@ -58,6 +61,7 @@ void init_adc_pins(void)
 	while ((SYSCTL->PRGPIO & 0x17) == 0) {};
 	GPIOC->DIR |= 0x80; 	// set PC7 for output
 	GPIOC->DEN |= 0x80;
+	GPIOC->DATA |= 0x80;
 	
 	GPIOE->DIR &= 0x0E;	// set PE1-3 to be input
 	GPIOE->DEN |= 0x0E;		// DEN PE1-3
@@ -127,11 +131,11 @@ void Init_Timer0A(uint32_t period_us)
 }
 
 int timer_count = 0;
-int t1 = 0;
-int t2 = 0;
 
 // init to unlikely val
-uint8_t ADC_OUTPUT = 0xFF;
+int8_t ADC_OUTPUT = 0xFF;
+int ADC_sum = 0;
+int current_speed =0x0A0A; //replace this value with current speed
 
 // Read the value output by the ADC
 void TIMER0A_Handler(void)
@@ -140,7 +144,24 @@ void TIMER0A_Handler(void)
 	//			 or disable all other interrupts while servicing it to prevent a critical code
 	// 			 section from being interrupted.
 	TIMER0->ICR = 0x01;		// ack the interrupt.
-	ADC_OUTPUT = (GPIOA->DATA & 0xC0) || (GPIOB->DATA & 0x3C) || ((GPIOE->DATA & 0x0C) >> 2);
+	
+	GPIOC->DATA &= ~0x80;
+	GPIOC->DATA |= 0x80;
+	
+	while((GPIOE->DATA & 0x02) == 0)
+	{
+	}
+	
+	ADC_OUTPUT = (GPIOA->DATA & 0xC0) | (GPIOB->DATA & 0x3C) | ((GPIOE->DATA & 0x0C) >> 2);
+	ADC_sum += ADC_OUTPUT;
+	timer_count++;
+	
+	if(timer_count >= 100){
+		int ADC_avg = ADC_sum / timer_count;
+		float v_avg = (((float)ADC_avg / 128.0) * 10.0) / 1000.0;
+		current_speed = Current_speed(v_avg);
+		timer_count = 1;
+	}
 }
 
 void lcd_thread(void)
@@ -169,7 +190,6 @@ void lcd_thread(void)
 		Set_Position(0x48);
 		Display_Msg("C:");
 
-		int current_speed =0x0A0A; //replace this value with current speed
 		char cur_str[4];
 		char* cur_ptr = cur_str;
 		Hex2ASCII(cur_ptr, current_speed);
