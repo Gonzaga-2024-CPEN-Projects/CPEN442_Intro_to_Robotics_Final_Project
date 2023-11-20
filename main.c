@@ -17,7 +17,7 @@ void Display_Msg(char *Str);
 
 // Operating System Functions
 void OS_Init(void);
-void OS_AddThreads(void f1(void), void f2(void), void f3(void));
+void OS_AddThreads(void f1(void), void f2(void), void f3(void), void f4(void));
 
 void OS_Launch(uint32_t);
 void OS_Wait(int32_t *S);
@@ -40,8 +40,13 @@ uint8_t Key_ASCII;
 uint32_t keypadASCII_buf[8];
 int keypad_idx = 0;
 
-uint32_t input_RPM; //input speed from keypad when entered
+uint32_t input_RPM; //input speed from keypad when entered, desired speed
 uint32_t display_input_RPM; //updated as user is pressing keys
+
+int32_t target_speed;
+int32_t estimated_speed;
+int32_t speed_error;
+int32_t U, I, P; //duty cycles
 
 void delayMs(int n)
 {
@@ -117,7 +122,9 @@ int timer_count = 0;
 int t1 = 0;
 int t2 = 0;
 int t3 = 0;
+int t4 = 0;
 
+int current_speed = 0x0A0A;
 void TIMER0A_Handler(void)
 {
 	// NOTE: we should either make this interrupt the highest priority in the system,
@@ -192,6 +199,8 @@ void keypad_thread(void)
 		//TODO: take care of case where enter is pressed 
 			t3++;
 			Scan_Keypad();
+		
+			
 			
 			if (Key_ASCII == '#') {
 				save = 1;
@@ -246,6 +255,48 @@ void keypad_thread(void)
 
 }
 
+//thread responsible for the controller, should run every 10ms
+//declared above
+//uint32_t input_RPM; //input speed from keypad when entered, desired speed
+
+//int32_t estimated_speed;
+//int32_t speed_error;
+//int32_t U, I, P; //duty cycles
+
+void controller_thread(void)
+{
+    while (1) {
+		t4++;
+		target_speed = input_RPM;
+		
+		speed_error = target_speed - current_speed;
+		P = (105*speed_error)/20;
+		I = I + (101*speed_error)/640;
+		if (I < -500){
+			I = -500;
+		}
+		if (I > 4000){
+			I = 4000;
+		}
+		U = P+I;
+		if (U < 400){
+			U = 400;
+		}
+		if (U > 2400){
+			U = 2400;
+		}
+		MOT34_Speed_Set(U);
+		
+		
+		
+		
+		//integer multipe of thread switching interval, thread switching every 2 ms
+		OS_Sleep(5);
+		
+			
+		};
+
+}
 
 void motor_init()
 {
@@ -265,7 +316,7 @@ int main(void)
 
     OS_Init();                 // initialize, disable interrupts, 16 MHz
 
-    OS_AddThreads(&lcd_thread, &thread2, &keypad_thread);
+    OS_AddThreads(&lcd_thread, &thread2, &keypad_thread, &controller_thread);
 
     OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
     return 0;             // this never executes
