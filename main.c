@@ -219,6 +219,8 @@ void lcd_thread(void)
 
 		Hex2ASCII(cur_ptr, current_speed);
 		Display_Msg(cur_ptr);
+		
+		OS_Sleep(200); //sleep for 1s is 500
 	};
 }
 
@@ -298,12 +300,14 @@ void keypad_thread(void)
 
 int32_t speed_error;
 int32_t U,I,P;
+float k_p = 0.05;// // original value:105/20;
+float k_i = 0.05;// original value: 101.0/640;
 void controller_thread(void)
 {
     while (1) {
 			speed_error = input_RPM - current_speed;
-			P = (105*speed_error)/20;
-			I = I + (101*speed_error)/640;
+			P = (k_p*speed_error);
+			I = I + (k_i*speed_error);
 			if(I < -500){
 				I = -500;
 			}
