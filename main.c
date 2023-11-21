@@ -240,23 +240,30 @@ void keypad_thread(void)
 {
 	int save = 0; //flag to update target speed
     while (1) {
-		//TODO: take care of case where enter is pressed 
 			t3++;
 			Scan_Keypad();
 			
 			if (Key_ASCII == '#') {
 				save = 1;
 			}
-			else{
+			else if (Key_ASCII == 'C'){
+				keypad_idx = 0;
+				save = 0;
+				keypadASCII_buf[0] = 0;
+				keypadASCII_buf[1] = 0;
+				keypadASCII_buf[2] = 0;
+				keypadASCII_buf[3] = 0;
+			}
+			else if (Key_ASCII != '*' && Key_ASCII != 'A' && Key_ASCII != 'B' && Key_ASCII != 'D'){
 				if (keypad_idx >= 3){
 					save = 1;
 				}
 				keypadASCII_buf[keypad_idx] = Key_ASCII;
-				keypad_idx++;
-			
-					
+				keypad_idx++;	
 			}
-			
+			else {
+				continue; 
+			}
 		
 		//fill byte buffer
 		uint8_t key_buf[] = {keypadASCII_buf[0], keypadASCII_buf[1], keypadASCII_buf[2], keypadASCII_buf[3]};
@@ -264,19 +271,15 @@ void keypad_thread(void)
 		//take care of 4th input separately since broken in code
 		if (keypad_idx >= 4){
 			display_input_RPM = display_input_RPM * 10 + (Key_ASCII)-48;
-			
 		}
 		else{
 			display_input_RPM = ASCII2Hex(key_buf);
 		}
-		
-		
-				
+
 		if (save == 1){
-			
 			input_RPM = display_input_RPM;
 			
-			if(input_RPM >2400){
+			if(input_RPM > 2400){
 				input_RPM = 2400;
 			}
 			else if ((input_RPM < 400) && (input_RPM > 0)){
@@ -288,13 +291,10 @@ void keypad_thread(void)
 			keypadASCII_buf[1] = 0;
 			keypadASCII_buf[2] = 0;
 			keypadASCII_buf[3] = 0;
-		}
-		
+			display_input_RPM = 0; 
+		}	
 		OS_Sleep(50);//delay to act as debouncer Might change later for better implementation
-			
-	
-		}
-
+	}
 }
 //thread for PI controller, should run every 10ms
 
