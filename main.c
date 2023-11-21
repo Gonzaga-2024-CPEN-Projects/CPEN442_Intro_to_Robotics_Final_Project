@@ -16,7 +16,7 @@ void Display_Msg(char *Str);
 
 // Operating System Functions
 void OS_Init(void);
-void OS_AddThreads(void f1(void), void f2(void), void f3(void));
+void OS_AddThreads(void f1(void), void f2(void), void f3(void), void f4(void));
 
 void OS_Launch(uint32_t);
 void OS_Wait(int32_t *S);
@@ -47,6 +47,9 @@ uint32_t display_input_RPM; //updated as user is pressing keys
 
 int32_t Current_speed(int32_t Avg_volt);
 
+
+
+
 void delayMs(int n)
 {
 	for (int i = 0; i < n; i++)
@@ -71,9 +74,9 @@ void init_adc_pins(void)
 	};
 	GPIOC->DIR |= 0x80; // set PC7 for output
 	GPIOC->DEN |= 0x80;
-	GPIOC->DATA |= 0x80;
+	GPIOC->DATA |= 0x80; 
 
-	GPIOE->DIR &= 0x0E; // set PE1-3 to be input
+	GPIOE->DIR &= ~0x0E; // set PE1-3 to be input NICK added the NOT
 	GPIOE->DEN |= 0x0E; // DEN PE1-3
 
 	GPIOB->DIR &= ~0x3C; // PB2-5 as input
@@ -167,7 +170,7 @@ void TIMER0A_Handler(void)
 
 	if (timer_count >= 100)
 	{
-		int ADC_avg = ADC_sum / timer_count;
+		int ADC_avg = ADC_sum / timer_count *-1;
 		int v_avg = ADC_avg * 10000 / 128;
 		current_speed = Current_speed(v_avg);
 		ADC_sum = 0;
@@ -198,7 +201,7 @@ void lcd_thread(void)
 		Display_Msg("T:");
 
 
-		//int target_speed =input_RPM; //replace this value with average speed
+		//int target_speed =input_RPM;
 		char tgt_str[10];
 		char* tgt_ptr = tgt_str;
 		//tgt_str[4] = '\0'; //to fix overflow error
@@ -210,13 +213,14 @@ void lcd_thread(void)
 		Display_Msg("C:");
 
 
-		int current_speed =0x0A0A; //replace this value with current speed
 		char cur_str[5];
 		char* cur_ptr = cur_str;
 		cur_str[4] = '\0';
 
 		Hex2ASCII(cur_ptr, current_speed);
 		Display_Msg(cur_ptr);
+		
+		OS_Sleep(200); //sleep for 1s is 500
 	};
 }
 
@@ -292,7 +296,43 @@ void keypad_thread(void)
 		}
 
 }
+//thread for PI controller, should run every 10ms
 
+int32_t speed_error;
+int32_t U,I,P;
+float k_p = 0.05;// // original value:105/20;
+float k_i = 0.05;// original value: 101.0/640;
+void controller_thread(void)
+{
+    while (1) {
+			speed_error = input_RPM - current_speed;
+			P = (k_p*speed_error);
+			I = I + (k_i*speed_error);
+			if(I < -500){
+				I = -500;
+			}
+			if (I > 4000){
+				I = 4000;
+			}
+			U = P+I;
+			if(U<400){
+				U = 400;
+			}
+			if (U > 2400){
+				U = 2400;
+			}
+			
+			//manaully stop the motor
+			if(input_RPM == 0){
+				MOT34_Speed_Set(1);
+			}
+			else{
+				MOT34_Speed_Set(U);
+			}
+			
+			OS_Sleep(5);
+		};
+}
 
 void motor_init()
 {
@@ -310,13 +350,13 @@ int main(void)
 	Init_LCD_Ports();
     Init_LCD();
 	Init_Keypad();
-
+	init_adc_pins();
 	motor_init();
 	
 	OS_Init(); // initialize, disable interrupts, 16 MHz
 	Init_Timer0A(100); 			// initalize for 100us interrupts
 
-	OS_AddThreads(&lcd_thread, &thread2, &keypad_thread);
+	OS_AddThreads(&lcd_thread, &thread2, &keypad_thread, &controller_thread);
 
 
 	OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here

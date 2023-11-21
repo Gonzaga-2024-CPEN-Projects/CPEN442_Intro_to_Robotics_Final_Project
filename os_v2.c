@@ -236,14 +236,16 @@ void SetInitialStack(int i)
 int OS_AddThreads(
 	void (*task0)(void),
 	void (*task1)(void),
-	void (*task2)(void))
+	void (*task2)(void),
+	void (*task3)(void))
 		
 {
 	int32_t status;
 	status = StartCritical();
 	tcbs[0].next = &tcbs[1]; // 0 points to 1
 	tcbs[1].next = &tcbs[2]; // 1 points to 0
-	tcbs[2].next = &tcbs[0];						 // tcbs[2].next = &tcbs[3]; // 2 points to 3
+	tcbs[2].next = &tcbs[3]; // 1 points to 0
+	tcbs[3].next = &tcbs[0];					
 							 //	tcbs[3].next = &tcbs[0]; // 3 points to 0
 	SetInitialStack(0);
 	Stacks[0][STACKSIZE - 2] = (int32_t)(task0); // PC
@@ -253,6 +255,9 @@ int OS_AddThreads(
 	
 	SetInitialStack(2);
 	Stacks[2][STACKSIZE - 2] = (int32_t)(task2); // PC
+	
+	SetInitialStack(3);
+	Stacks[3][STACKSIZE - 2] = (int32_t)(task3); // PC
 
 	RunPt = &tcbs[0];							 // thread 0 will run first
 	EndCritical(status);
