@@ -76,7 +76,7 @@ void init_adc_pins(void)
 	GPIOC->DEN |= 0x80;
 	GPIOC->DATA |= 0x80; 
 
-	GPIOE->DIR &= ~0x0E; // set PE1-3 to be input NICK added the NOT
+	GPIOE->DIR &= 0x0E; // set PE1-3 to be input NICK added the NOT
 	GPIOE->DEN |= 0x0E; // DEN PE1-3
 
 	GPIOB->DIR &= ~0x3C; // PB2-5 as input
@@ -163,14 +163,16 @@ void TIMER0A_Handler(void)
 	GPIOC->DATA &= ~0x80;
 	GPIOC->DATA |= 0x80;
 
-
+	while((GPIOE->DATA &0x02) == 0)
+	{
+	}
 	ADC_OUTPUT = (GPIOA->DATA & 0xC0) | (GPIOB->DATA & 0x3C) | ((GPIOE->DATA & 0x0C) >> 2);
 	ADC_sum += ADC_OUTPUT;
 	timer_count++;
 
 	if (timer_count >= 100)
 	{
-		int ADC_avg = ADC_sum / timer_count *-1;
+		int ADC_avg = ADC_sum / timer_count;
 		int v_avg = ADC_avg * 10000 / 128;
 		current_speed = Current_speed(v_avg);
 		ADC_sum = 0;
