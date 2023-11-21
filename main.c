@@ -76,7 +76,7 @@ void init_adc_pins(void)
 	GPIOC->DEN |= 0x80;
 	GPIOC->DATA |= 0x80; 
 
-	GPIOE->DIR &= 0x0E; // set PE1-3 to be input NICK added the NOT
+	GPIOE->DIR &= ~0x0E; // set PE1-3 to be input NICK added the NOT
 	GPIOE->DEN |= 0x0E; // DEN PE1-3
 
 	GPIOB->DIR &= ~0x3C; // PB2-5 as input
@@ -172,8 +172,8 @@ void TIMER0A_Handler(void)
 
 	if (timer_count >= 100)
 	{
-		int ADC_avg = ADC_sum / timer_count;
-		int v_avg = ADC_avg * 10000 / 128;
+		float ADC_avg = (float)ADC_sum / (float)timer_count;
+		int v_avg = (int)((ADC_avg * 10000.0 / 127.0));
 		current_speed = Current_speed(v_avg);
 		ADC_sum = 0;
 		timer_count = 1;
@@ -222,7 +222,7 @@ void lcd_thread(void)
 		Hex2ASCII(cur_ptr, current_speed);
 		Display_Msg(cur_ptr);
 		
-		OS_Sleep(200); //sleep for 1s is 500
+		OS_Sleep(50); //sleep for 1s is 500
 	};
 }
 
@@ -302,12 +302,12 @@ void keypad_thread(void)
 
 int32_t speed_error;
 int32_t U,I,P;
-float k_p = 0.05;// // original value:105/20;
-float k_i = 0.05;// original value: 101.0/640;
+float k_p = 0.02;// // original value:105/20;
+float k_i = 0.02;// original value: 101.0/640;
 void controller_thread(void)
 {
     while (1) {
-			speed_error = input_RPM - current_speed;
+			speed_error = (int)input_RPM - (int)current_speed;
 			P = (k_p*speed_error);
 			I = I + (k_i*speed_error);
 			if(I < -500){
@@ -316,6 +316,8 @@ void controller_thread(void)
 			if (I > 4000){
 				I = 4000;
 			}
+			//I = 0; //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
+			//P = 0; // KAKAW KAKAW AAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHH
 			U = P+I;
 			if(U<400){
 				U = 400;
@@ -346,9 +348,6 @@ void motor_init()
 int main(void)
 {
 
-    
-
-		
 	Init_LCD_Ports();
     Init_LCD();
 	Init_Keypad();
