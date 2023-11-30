@@ -149,8 +149,10 @@ int t3 = 0;
 
 // init to unlikely val
 int8_t ADC_OUTPUT = 0xFF;
-int ADC_sum = 0;
+int ADC_OUTPUT_32 = 0xFFFFFFFF;
+long ADC_sum = 0;
 int current_speed = 0x0A0A; // replace this value with current speed
+long speed_acc = 0;
 
 // Read the value output by the ADC
 void TIMER0A_Handler(void)
@@ -167,16 +169,27 @@ void TIMER0A_Handler(void)
 	{
 	}
 	ADC_OUTPUT = (GPIOA->DATA & 0xC0) | (GPIOB->DATA & 0x3C) | ((GPIOE->DATA & 0x0C) >> 2);
-	ADC_sum += ADC_OUTPUT;
+	
+	ADC_OUTPUT_32 = 0;
+	if(ADC_OUTPUT >= 0)
+	{
+		ADC_OUTPUT_32 = ADC_OUTPUT;
+	}
+	else
+	{
+		ADC_OUTPUT_32 = ADC_OUTPUT | 0xFFFFFF00;
+	}
+	ADC_sum += ADC_OUTPUT_32;
 	timer_count++;
 
-	if (timer_count >= 100)
+	if (timer_count > 99)
 	{
 		float ADC_avg = (float)ADC_sum / (float)timer_count;
-		int v_avg = (int)((ADC_avg * 10000.0 / 127.0));
+		int v_avg = (int)(ADC_avg * 10000.0 / 128.0);
 		current_speed = Current_speed(v_avg);
+		speed_acc = speed_acc + current_speed;
 		ADC_sum = 0;
-		timer_count = 1;
+		timer_count = 0;
 	}
 }
 
@@ -214,15 +227,16 @@ void lcd_thread(void)
 		Set_Position(0x48);
 		Display_Msg("C:");
 
-
+		int cur_spd_avg = speed_acc / 100;
+		speed_acc = 0;
 		char cur_str[5];
 		char* cur_ptr = cur_str;
 		cur_str[4] = '\0';
-
-		Hex2ASCII(cur_ptr, current_speed);
+		
+		Hex2ASCII(cur_ptr, cur_spd_avg);
 		Display_Msg(cur_ptr);
 		
-		OS_Sleep(50); //sleep for 1s is 500
+		OS_Sleep(500); //sleep for 1s is 500
 	};
 }
 
@@ -300,25 +314,31 @@ void keypad_thread(void)
 }
 //thread for PI controller, should run every 10ms
 
-int32_t speed_error;
-int32_t U,I,P;
-float k_p = 0.02;// // original value:105/20;
-float k_i = 0.02;// original value: 101.0/640;
+int32_t speed_error = 0;
+int32_t last_error = 0;
+int32_t U,I,P,D;
+int last_input_rpm;
+float k_p = 0.2;// // original value:105/20;
+float k_i = 0.05;// original value: 101.0/640;
+float k_d = 0.001;
 void controller_thread(void)
 {
     while (1) {
-			speed_error = (int)input_RPM - (int)current_speed;
-			P = (k_p*speed_error);
-			I = I + (k_i*speed_error);
-			if(I < -500){
-				I = -500;
-			}
-			if (I > 4000){
-				I = 4000;
-			}
-			//I = 0; //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
-			//P = 0; // KAKAW KAKAW AAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHH
-			U = P+I;
+			last_error = speed_error;
+			speed_error = input_RPM - current_speed;
+			P = k_p*speed_error;
+			I = I + k_i*speed_error;
+			D = k_d * ((speed_error - last_error)/ 0.01);
+		
+//			if(I < -500){
+//				I = -500;
+//			}
+//			if (I > 4000){
+//				I = 4000;
+//			}
+			
+			U = P + I;
+			
 			if(U<400){
 				U = 400;
 			}
@@ -332,8 +352,13 @@ void controller_thread(void)
 			}
 			else{
 				MOT34_Speed_Set(U);
+				if(last_input_rpm != input_RPM)
+				{
+					I = 0;
+				}
+				last_input_rpm = input_RPM;
 			}
-			
+			//MOT34_Speed_Set(1200);
 			OS_Sleep(5);
 		};
 }
