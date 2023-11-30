@@ -185,7 +185,7 @@ void TIMER0A_Handler(void)
 	if (timer_count > 99)
 	{
 		float ADC_avg = (float)ADC_sum / (float)timer_count;
-		int v_avg = (int)(ADC_avg * 10000.0 / 128.0);
+		int v_avg = (int)(ADC_avg * 10000.0 / 127.0);
 		current_speed = Current_speed(v_avg);
 		speed_acc = speed_acc + current_speed;
 		ADC_sum = 0;
