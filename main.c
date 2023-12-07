@@ -33,22 +33,18 @@ extern void Init_LCD(void);
 extern void Init_Keypad(void);
 extern void Scan_Keypad(void);
 
-
-extern void Hex2ASCII(char* output, int hex);
-extern int ASCII2Hex(uint8_t* input);
+extern void Hex2ASCII(char *output, int hex);
+extern int ASCII2Hex(uint8_t *input);
 extern uint8_t Read_Key(void);
 
 uint8_t Key_ASCII;
 uint32_t keypadASCII_buf[8];
 int keypad_idx = 0;
 
-uint32_t input_RPM; //input speed from keypad when entered
-uint32_t display_input_RPM; //updated as user is pressing keys
+uint32_t input_RPM;			// input speed from keypad when entered
+uint32_t display_input_RPM; // updated as user is pressing keys
 
 int32_t Current_speed(int32_t Avg_volt);
-
-
-
 
 void delayMs(int n)
 {
@@ -74,10 +70,10 @@ void init_adc_pins(void)
 	};
 	GPIOC->DIR |= 0x80; // set PC7 for output
 	GPIOC->DEN |= 0x80;
-	GPIOC->DATA |= 0x80; 
+	GPIOC->DATA |= 0x80;
 
 	GPIOE->DIR &= ~0x0E; // set PE1-3 to be input NICK added the NOT
-	GPIOE->DEN |= 0x0E; // DEN PE1-3
+	GPIOE->DEN |= 0x0E;	 // DEN PE1-3
 
 	GPIOB->DIR &= ~0x3C; // PB2-5 as input
 	GPIOB->DEN |= 0x3C;
@@ -165,13 +161,13 @@ void TIMER0A_Handler(void)
 	GPIOC->DATA &= ~0x80;
 	GPIOC->DATA |= 0x80;
 
-	while((GPIOE->DATA &0x02) == 0)
+	while ((GPIOE->DATA & 0x02) == 0)
 	{
 	}
 	ADC_OUTPUT = (GPIOA->DATA & 0xC0) | (GPIOB->DATA & 0x3C) | ((GPIOE->DATA & 0x0C) >> 2);
-	
+
 	ADC_OUTPUT_32 = 0;
-	if(ADC_OUTPUT >= 0)
+	if (ADC_OUTPUT >= 0)
 	{
 		ADC_OUTPUT_32 = ADC_OUTPUT;
 	}
@@ -189,25 +185,23 @@ void TIMER0A_Handler(void)
 		current_speed = Current_speed(v_avg);
 		speed_acc = speed_acc + current_speed;
 		ADC_sum = 0;
-		timer_count = 0;
+		timer_count = 1;
 	}
 }
 
 void lcd_thread(void)
 {
 
-  while (1) {
-	  
-	  
+	while (1)
+	{
+
 		/*Routine to print all necessary values to LCD*/
 		Set_Position(0x00);
 		Display_Msg("Input RPM:");
 
-
-		
 		char RPM_str[10];
-		char* RPM_ptr = RPM_str;
-		//RPM_str[4] = '\0';
+		char *RPM_ptr = RPM_str;
+		// RPM_str[4] = '\0';
 		Hex2ASCII(RPM_ptr, display_input_RPM);
 
 		Display_Msg(RPM_ptr);
@@ -215,28 +209,26 @@ void lcd_thread(void)
 		Set_Position(0x40);
 		Display_Msg("T:");
 
-
-		//int target_speed =input_RPM;
+		// int target_speed =input_RPM;
 		char tgt_str[10];
-		char* tgt_ptr = tgt_str;
-		//tgt_str[4] = '\0'; //to fix overflow error
+		char *tgt_ptr = tgt_str;
+		// tgt_str[4] = '\0'; //to fix overflow error
 		Hex2ASCII(tgt_ptr, input_RPM);
 		Display_Msg(tgt_ptr);
-
 
 		Set_Position(0x48);
 		Display_Msg("C:");
 
-		int cur_spd_avg = speed_acc / 100;
+		int cur_spd_avg = speed_acc / 100; // Dr. Tadrous if you are seeing this no you aren't
 		speed_acc = 0;
 		char cur_str[5];
-		char* cur_ptr = cur_str;
+		char *cur_ptr = cur_str;
 		cur_str[4] = '\0';
-		
+
 		Hex2ASCII(cur_ptr, cur_spd_avg);
 		Display_Msg(cur_ptr);
-		
-		OS_Sleep(500); //sleep for 1s is 500
+
+		OS_Sleep(500); // sleep for 1s is 500
 	};
 }
 
@@ -244,58 +236,71 @@ void lcd_thread(void)
 void thread2(void)
 {
 
-    while (1) {
+	while (1)
+	{
 		t2++;
-		
-			
-		};
+	};
 }
 
 // Keypad thread responsible for reading and storing keypad input.
 void keypad_thread(void)
 {
-	int save = 0; //flag to update target speed
-    while (1) {
-		//TODO: take care of case where enter is pressed 
-			t3++;
-			Scan_Keypad();
-			
-			if (Key_ASCII == '#') {
+	int save = 0; // flag to update target speed
+	while (1)
+	{
+		t3++;
+		Scan_Keypad();
+
+		if (Key_ASCII == '#')
+		{
+			save = 1;
+		}
+		else if (Key_ASCII == 'C')
+		{
+			keypad_idx = 0;
+			save = 0;
+			keypadASCII_buf[0] = 0;
+			keypadASCII_buf[1] = 0;
+			keypadASCII_buf[2] = 0;
+			keypadASCII_buf[3] = 0;
+		}
+		else if (Key_ASCII != '*' && Key_ASCII != 'A' && Key_ASCII != 'B' && Key_ASCII != 'D')
+		{
+			if (keypad_idx >= 3)
+			{
 				save = 1;
 			}
-			else{
-				if (keypad_idx >= 3){
-					save = 1;
-				}
-				keypadASCII_buf[keypad_idx] = Key_ASCII;
-				keypad_idx++;
-			
-					
-			}
-			
-		
-		//fill byte buffer
-		uint8_t key_buf[] = {keypadASCII_buf[0], keypadASCII_buf[1], keypadASCII_buf[2], keypadASCII_buf[3]};
-		
-		//take care of 4th input separately since broken in code
-		if (keypad_idx >= 4){
-			display_input_RPM = display_input_RPM * 10 + (Key_ASCII)-48;
-			
+			keypadASCII_buf[keypad_idx] = Key_ASCII;
+			keypad_idx++;
 		}
-		else{
+		else
+		{
+			continue;
+		}
+
+		// fill byte buffer
+		uint8_t key_buf[] = {keypadASCII_buf[0], keypadASCII_buf[1], keypadASCII_buf[2], keypadASCII_buf[3]};
+
+		// take care of 4th input separately since broken in code
+		if (keypad_idx >= 4)
+		{
+			display_input_RPM = display_input_RPM * 10 + (Key_ASCII)-48;
+		}
+		else
+		{
 			display_input_RPM = ASCII2Hex(key_buf);
 		}
-		
-		
-				
-		if (save == 1){
-			
+
+		if (save == 1)
+		{
 			input_RPM = display_input_RPM;
-			
-			if(input_RPM >2400){
+
+			if (input_RPM > 2400)
+			{
 				input_RPM = 2400;
 			}
-			else if ((input_RPM < 400) && (input_RPM > 0)){
+			else if ((input_RPM < 400) && (input_RPM > 0))
+			{
 				input_RPM = 400;
 			}
 			keypad_idx = 0;
@@ -304,63 +309,65 @@ void keypad_thread(void)
 			keypadASCII_buf[1] = 0;
 			keypadASCII_buf[2] = 0;
 			keypadASCII_buf[3] = 0;
+			display_input_RPM = 0;
 		}
-		
-		OS_Sleep(50);//delay to act as debouncer Might change later for better implementation
-			
-	
-		}
-
+		OS_Sleep(50); // delay to act as debouncer Might change later for better implementation
+	}
 }
-//thread for PI controller, should run every 10ms
+// thread for PI controller, should run every 10ms
 
 int32_t speed_error = 0;
 int32_t last_error = 0;
-int32_t U,I,P,D;
+int32_t U, I, P, D;
 int last_input_rpm;
-float k_p = 0.2;// // original value:105/20;
-float k_i = 0.05;// original value: 101.0/640;
+float k_p = 0.2;  // // original value:105/20;
+float k_i = 0.05; // original value: 101.0/640;
 float k_d = 0.001;
 void controller_thread(void)
 {
-    while (1) {
-			last_error = speed_error;
-			speed_error = input_RPM - current_speed;
-			P = k_p*speed_error;
-			I = I + k_i*speed_error;
-			D = k_d * ((speed_error - last_error)/ 0.01);
-		
-//			if(I < -500){
-//				I = -500;
-//			}
-//			if (I > 4000){
-//				I = 4000;
-//			}
-			
-			U = P + I;
-			
-			if(U<400){
-				U = 400;
+	while (1)
+	{
+		last_error = speed_error;
+		speed_error = input_RPM - current_speed;
+		P = k_p * speed_error;
+		I = I + k_i * speed_error;
+		D = k_d * ((speed_error - last_error) / 0.01);
+
+		//			if(I < -500){
+		//				I = -500;
+		//			}
+		//			if (I > 4000){
+		//				I = 4000;
+		//			}
+
+		U = P + I + D;
+
+		if (U < 400)
+		{
+			U = 400;
+		}
+		if (U > 2400)
+		{
+			U = 2400;
+		}
+
+		// manaully stop the motor
+		if (input_RPM == 0)
+		{
+			MOT34_Speed_Set(1);
+		}
+		else
+		{
+			MOT34_Speed_Set(U);
+			if (last_input_rpm != input_RPM)
+			{
+				I = 0;
 			}
-			if (U > 2400){
-				U = 2400;
-			}
-			
-			//manaully stop the motor
-			if(input_RPM == 0){
-				MOT34_Speed_Set(1);
-			}
-			else{
-				MOT34_Speed_Set(U);
-				if(last_input_rpm != input_RPM)
-				{
-					I = 0;
-				}
-				last_input_rpm = input_RPM;
-			}
-			//MOT34_Speed_Set(1200);
-			OS_Sleep(5);
-		};
+			last_input_rpm = input_RPM;
+		}
+		// MOT34_Speed_Set(1200);
+		OS_Sleep(5);
+	};
 }
 
 void motor_init()
@@ -374,16 +381,15 @@ int main(void)
 {
 
 	Init_LCD_Ports();
-    Init_LCD();
+	Init_LCD();
 	Init_Keypad();
 	init_adc_pins();
 	motor_init();
-	
-	OS_Init(); // initialize, disable interrupts, 16 MHz
-	Init_Timer0A(100); 			// initalize for 100us interrupts
+
+	OS_Init();		   // initialize, disable interrupts, 16 MHz
+	Init_Timer0A(100); // initalize for 100us interrupts
 
 	OS_AddThreads(&lcd_thread, &thread2, &keypad_thread, &controller_thread);
-
 
 	OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
 	return 0;			  // this never executes
